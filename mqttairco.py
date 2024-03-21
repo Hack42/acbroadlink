@@ -329,7 +329,7 @@ mqttc = mqtt.Client()
 mqttc.on_connect = on_connect
 mqttc.on_message = on_message
 mqttc.will_set("acbroadlink/LWT", payload="Offline", qos=0, retain=True)
-mqttc.connect("monitor", 1883, 60)
+mqttc.connect(config['mqttserver'], 1883, 60)
 mqttc.loop_start()
 mqttl = MqttTopics(mqttc)
 

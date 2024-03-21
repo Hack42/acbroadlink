@@ -1,2 +1,3 @@
 email: email@example.tld
 password: Welcome01
+mqttserver: mqtt.example.tld
