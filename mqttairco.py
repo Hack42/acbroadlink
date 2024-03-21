@@ -322,9 +322,9 @@ class MqttTopics:
 
 
 with open("config.yaml", "r") as f:
-    config = yaml.load(f)
+    config = yaml.load(f, Loader=yaml.FullLoader)
 
-al = AircoList(config['email'], config['password'])
+al = AircoList(config["email"], config["password"])
 mqttc = mqtt.Client()
 mqttc.on_connect = on_connect
 mqttc.on_message = on_message
