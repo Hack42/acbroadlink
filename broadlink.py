@@ -1,13 +1,12 @@
 import logging
 from hashlib import md5, sha1
-from Crypto.Cipher import AES
 import json
+import base64
 from pprint import pprint
 from time import time
-import requests
-from websocket import create_connection
 from copy import copy
-import base64
+import requests
+from Crypto.Cipher import AES
 
 
 class HttpRequestor:
@@ -31,8 +30,12 @@ class HttpRequestor:
     aesiv = b"\xea\xaa\xaa:\xbbXb\xa2\x19\x18\xb5w\x1d\x16\x15\xaa"
     licenseId = "3c015b249dd66ef0f11f9bef59ecd737"
     companyID = "48eb1b36cf0202ab2ef07b880ecda60d"
+    session = None
+    familyid = None
+    roomlist = None
+    devlist = None
 
-    license = "PAFbJJ3WbvDxH5vvWezXN5BujETtH/iuTtIIW5CE/SeHN7oNKqnEajgljTcL0fBQQWM0XAAAAAAnBhJyhMi7zIQMsUcwR/PEwGA3uB5HLOnr+xRrci+FwHMkUtK7v4yo0ZHa+jPvb6djelPP893k7SagmffZmOkLSOsbNs8CAqsu8HuIDs2mDQAAAAA="
+    license = "PAFbJJ3WbvDxH5vvWezXN5BujETtH/iuTtIIW5CE/SeHN7oNKqnEajgljTcL0fBQQWM0XAAAAAAnBhJyhMi7zIQMsUcwR/PEwGA3uB5HLOnr+xRrci+FwHMkUtK7v4yo0ZHa+jPvb6djelPP893k7SagmffZmOkLSOsbNs8CAqsu8HuIDs2mDQAAAAA="  # pylint: disable=C0301
 
     generichdr = {
         "system": "android",
@@ -87,7 +90,9 @@ class HttpRequestor:
         )
         padsize = 16 - len(formstring) % 16
         encrypteddata = cipher.encrypt(formstring.encode() + b"\x00" * padsize)
-        response = requests.post(self.loginURL, headers=headers, data=encrypteddata)
+        response = requests.post(
+            self.loginURL, headers=headers, data=encrypteddata, timeout=30
+        )
         self.session = response.json()
         return True
 
@@ -101,7 +106,7 @@ class HttpRequestor:
             }
         )
         headers.update(self.maketimestamp())
-        familyresponse = requests.post(self.familylistURL, headers=headers)
+        familyresponse = requests.post(self.familylistURL, headers=headers, timeout=30)
         self.familyid = familyresponse.json()["data"]["familyList"][0]["familyid"]
         return True
 
@@ -116,7 +121,7 @@ class HttpRequestor:
             }
         )
         headers.update(self.maketimestamp())
-        roomlistresponse = requests.post(self.roomlistURL, headers=headers)
+        roomlistresponse = requests.post(self.roomlistURL, headers=headers, timeout=30)
         self.roomlist = {
             x["roomid"]: x for x in roomlistresponse.json()["data"]["roomList"]
         }
@@ -135,7 +140,7 @@ class HttpRequestor:
         headers.update(self.maketimestamp())
         pidlist = {"pids": []}
         devlistresponse = requests.post(
-            self.devicelistURL, headers=headers, data=json.dumps(pidlist)
+            self.devicelistURL, headers=headers, data=json.dumps(pidlist), timeout=30
         )
         self.devlist = devlistresponse.json()["data"]["endpoints"]
         print(self.devlist)
@@ -172,6 +177,7 @@ class HttpRequestor:
             params={"license": self.license},
             headers=headers,
             data=json.dumps(modejson),
+            timeout=30,
         )
         pprint(sdkresp.text)
         gotdata = json.loads(sdkresp.json()["event"]["payload"]["data"])
@@ -320,6 +326,6 @@ class AircoList:
         self.http.listdevices()
         for dev in self.http.devlist:
             self.aircos[dev["endpointId"]] = Airco(self.http, dev)
-        for name in self.aircos:
+        for name, airco in self.aircos.items():
             logging.info("Getting values from %s", name)
-            self.aircos[name].getinfo()
+            airco.getinfo()

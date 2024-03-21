@@ -1,13 +1,12 @@
 #!/usr/bin/python3
-import yaml
 import logging
 import json
+import time
+import yaml
 import paho.mqtt.client as mqtt
 from broadlink import AircoList
 
 logging.basicConfig(level=logging.DEBUG)
-from pprint import pprint
-import time
 
 
 ACMODES = ["off", "cool", "heat", "fan_only", "dry"]
@@ -15,14 +14,13 @@ FANMODES = ["Auto", "Low", "Medium", "High", "Turbo", "Mute"]
 SWINGMODES = ["Off", "Vertical", "Horizontal", "3D"]
 
 
-def on_connect(client, userdata, flags, reason_code):
+def on_connect(client, _userdata, _flags, reason_code):
     print(f"Connected with result code {reason_code}")
     client.publish("acbroadlink/LWT", payload="Online", qos=0, retain=True)
     client.subscribe("acbroadlink/+/+/set")
 
 
-def on_message(client, userdata, msg):
-    print(msg.topic + " " + str(msg.payload))
+def on_message(_client, _userdata, msg):
     parts = msg.topic.split("/")
     device = parts[1]
     cmd = parts[2]
@@ -125,7 +123,6 @@ def gen_ha_config(device):
     device_name = device.device["endpointId"]
     haac_topic = "homeassistant/climate/" + device_name + "/config"
     mqtt_base_topic = "acbroadlink/" + device_name
-    """Generate a automatic configuration for Home Assistant."""
     json_config = {
         "avail_t": "acbroadlink/LWT",
         "name": device.device["friendlyName"],
@@ -269,7 +266,7 @@ def gen_ha_status(device):
     device_name = device.device["endpointId"]
     mqtt_base_topic = "acbroadlink/" + device_name
     if not device.values:
-        return {}
+        return
     mqttl.set(mqtt_base_topic + "/available", "online")
     mqttl.set(mqtt_base_topic + "/env_temp", device.values["envtemp"] / 10)
     mqttl.set(mqtt_base_topic + "/temp/state", device.values["temp"] / 10)
@@ -321,7 +318,7 @@ class MqttTopics:
         self.topics[topic].update(self.client, topic, payload, retain)
 
 
-with open("config.yaml", "r") as f:
+with open("config.yaml", "r", encoding="utf-8") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
 
 al = AircoList(config["email"], config["password"])
@@ -329,7 +326,7 @@ mqttc = mqtt.Client()
 mqttc.on_connect = on_connect
 mqttc.on_message = on_message
 mqttc.will_set("acbroadlink/LWT", payload="Offline", qos=0, retain=True)
-mqttc.connect(config['mqttserver'], 1883, 60)
+mqttc.connect(config["mqttserver"], 1883, 60)
 mqttc.loop_start()
 mqttl = MqttTopics(mqttc)
 
@@ -338,7 +335,6 @@ for dev in al.aircos.values():
     gen_ha_status(dev)
 
 while True:
-    pass
     for dev in al.aircos.values():
         if dev.last:
             if dev.last < time.time() - 60:
